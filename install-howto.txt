@@ -52,14 +52,9 @@ cd ~
 #Allow to Connect from chroot env to local Xorg session
 xhost +SI:localuser:skype
 
-
-
-
 #make PULSE server config at server side
 # NOT in chroot (!)
 # in your local user or into GLOBAL default config
-
-
 if [ ! -f "~/.pulse/default.pa" ]; then
 mkdir ~/.pulse 
 cat > ~/.pulse/default.pa <<EOF
@@ -116,18 +111,13 @@ else
 	echo "File already exist. Skipping. (!)"
 fi
 
-
-
 #test listening ports
 netstat -tnlp | grep pulse
-
 #Example:
 #tcp        0      0 0.0.0.0:4713            0.0.0.0:*               LISTEN      2448/pulseaudio 
-
 echo "Now we will install new Debian into /opt/skype/rootfs"
-echo "press ENTER to continue or ^C to abort"
+echo "If you ready press ENTER to continue or ^C to abort"
 read a
-
 
 ###############################################################################
 #login to root user                                                           #
@@ -165,7 +155,6 @@ exit
 #Add user for skype in chroot environment
 useradd skype -m -s /bin/bash
 
-
 #waiting placing DEB package
 echo "Place skype DEB package into /tmp filesystem in chroot"
 echo "(this is /opt/skype/rootfs/tmp dir from physical machine)"
@@ -190,8 +179,6 @@ mkdir .pulse
 cat > .pulse/client.conf  << EOF
 default-server = 127.0.0.1
 EOF
-
-
 
 #return to chroot
 #test network connection to ALSA server at 127.0.0.1
