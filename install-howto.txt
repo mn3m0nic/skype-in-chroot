@@ -23,7 +23,8 @@
 #   perfomance
 #
 # Minus:
-# 
+# - difficult to install and you need to both systems (real and chroot)
+#   and it's eat some disk space (in my case 1.4G <- /opt/skype/ )
 #
 # TODO:
 # - make own TCP/IP stack
