@@ -1,5 +1,5 @@
 #!/bin/bash
-#v 0.01
+# v 0.01
 # skype installation script
 # 
 # https://github.com/mn3m0nic/skype-in-chroot
@@ -37,7 +37,7 @@
 
 if [ "$EUID" == 0 ]; then 
 	echo "Please do not run this script from root user."
-	echo "Start it from your local user with access to X11 and Pulse"
+	echo "Start it from your local user with access to sudo, X11 and PULSE"
 	exit
 fi
 
@@ -148,6 +148,7 @@ mount --bind /proc /opt/skype/rootfs/proc/
 #chroot into new installed Debian and do install preporations
 chroot /opt/skype/rootfs/
 
+cat >/etc/apt/sources.list << EOF
 deb http://ftp.by.debian.org/debian/ jessie main non-free contrib
 deb-src http://ftp.by.debian.org/debian/ jessie main non-free contrib
 deb http://security.debian.org/ jessie/updates main contrib non-free
@@ -164,11 +165,18 @@ exit
 #Add user for skype in chroot environment
 useradd skype -m -s /bin/bash
 
+
+#waiting placing DEB package
+echo "Place skype DEB package into /tmp filesystem in chroot"
+echo "(this is /opt/skype/rootfs/tmp dir from physical machine)"
+echo "and press ENTER"
+read a
+
 #install skype:
-mv -v /tmp/skype-debian_4.3.0.37-1_i386.deb /home/skype/
+mv -v /tmp/skype-debian_*.deb /home/skype/
 cd /home/skype/
 dpkg --add-architecture i386
-dpkg -i skype-debian_4.3.0.37-1_i386.deb
+dpkg -i skype-debian_*.deb
 apt-get install -f
 apt-get install aptitude vim mc sudo netcat pulse pavucontrol strace ltrace
 
