@@ -1,0 +1,203 @@
+#!/bin/bash
+#v 0.01
+# skype installation script
+# 
+# https://github.com/mn3m0nic/skype-in-chroot
+# mailto: mn3m00@gmail.com
+#
+#
+#
+
+# tested on default Debian 8 Jessie GNU/Linux 
+#
+# working: 
+# + video  OK
+# + audio  OK
+#
+# benefits:
+# + skype don't see real rootfs and don't have access to any installed
+#   program or local file
+# + if someone use exploit from skype - it have root only from chroot
+#   environment but not from real physical system
+# + it's not virtual machine and have almost equal to physical hardware
+#   perfomance
+#
+# Minus:
+# 
+#
+# TODO:
+# - make own TCP/IP stack
+# - remove /procfs from chroot
+
+
+
+
+#start on your local user
+
+if [ "$EUID" == 0 ]; then 
+	echo "Please do not run this script from root user."
+	echo "Start it from your local user with access to X11 and Pulse"
+	exit
+fi
+
+
+echo "This script will help you install skype from chroot"
+echo "press ENTER to continue or ^C to abort"
+read a
+
+
+cd ~
+
+#Allow to Connect from chroot env to local Xorg session
+xhost +SI:localuser:skype
+
+
+
+
+#make PULSE server config at server side
+# NOT in chroot (!)
+# in your local user or into GLOBAL default config
+
+
+if [ ! -f "~/.pulse/default.pa" ]; then
+mkdir ~/.pulse 
+cat > ~/.pulse/default.pa <<EOF
+.nofail
+.fail
+load-module module-device-restore
+load-module module-stream-restore
+load-module module-card-restore
+load-module module-augment-properties
+.ifexists module-udev-detect.so
+load-module module-udev-detect
+.else
+load-module module-detect
+.endif
+.ifexists module-jackdbus-detect.so
+.nofail
+load-module module-jackdbus-detect
+.fail
+.endif
+.ifexists module-bluetooth-discover.so
+load-module module-bluetooth-discover
+.endif
+.ifexists module-esound-protocol-unix.so
+load-module module-esound-protocol-unix
+.endif
+load-module module-native-protocol-unix
+.ifexists module-gconf.so
+.nofail
+load-module module-gconf
+.fail
+.endif
+load-module module-default-device-restore
+load-module module-rescue-streams
+load-module module-always-sink
+load-module module-intended-roles
+load-module module-suspend-on-idle
+.ifexists module-console-kit.so
+load-module module-console-kit
+.endif
+.ifexists module-systemd-login.so
+load-module module-systemd-login
+.endif
+load-module module-position-event-sounds
+load-module module-role-cork
+load-module module-filter-heuristics
+load-module module-filter-apply
+.ifexists module-dbus-protocol.so
+load-module module-dbus-protocol
+.endif
+load-module module-switch-on-port-available
+load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1
+EOF
+else
+	echo "File already exist. Skipping. (!)"
+fi
+
+
+
+#test listening ports
+netstat -tnlp | grep pulse
+
+#Example:
+#tcp        0      0 0.0.0.0:4713            0.0.0.0:*               LISTEN      2448/pulseaudio 
+
+echo "Now we will install new Debian into /opt/skype/rootfs"
+echo "press ENTER to continue or ^C to abort"
+read a
+
+
+###############################################################################
+#login to root user                                                           #
+###############################################################################
+sudo -i
+
+#install debian into /opt/skype/rootfs
+cd /
+mkdir -p /opt/skype/rootfs/
+debootstrap jessie /opt/skype/rootfs/ http://http.debian.net/debian/
+
+#mounting devfs for VIDEO-camera working (not necessarily !)
+mount --bind /dev /opt/skype/rootfs/dev/
+
+#mount procfs for preventing skype do not crash with (No enoutch memory error)
+mount --bind /proc /opt/skype/rootfs/proc/
+
+#chroot into new installed Debian and do install preporations
+chroot /opt/skype/rootfs/
+
+deb http://ftp.by.debian.org/debian/ jessie main non-free contrib
+deb-src http://ftp.by.debian.org/debian/ jessie main non-free contrib
+deb http://security.debian.org/ jessie/updates main contrib non-free
+deb-src http://security.debian.org/ jessie/updates main contrib non-free
+deb http://ftp.by.debian.org/debian/ jessie-updates main contrib non-free
+deb-src http://ftp.by.debian.org/debian/ jessie-updates main contrib non-free
+deb http://ftp.by.debian.org/debian/ jessie-backports main contrib non-free
+deb-src http://ftp.by.debian.org/debian/ jessie-backports main contrib non-free
+EOF
+apt-get update
+apt-get dist-upgrade
+exit
+
+#Add user for skype in chroot environment
+useradd skype -m -s /bin/bash
+
+#install skype:
+mv -v /tmp/skype-debian_4.3.0.37-1_i386.deb /home/skype/
+cd /home/skype/
+dpkg --add-architecture i386
+dpkg -i skype-debian_4.3.0.37-1_i386.deb
+apt-get install -f
+apt-get install aptitude vim mc sudo netcat pulse pavucontrol strace ltrace
+
+#prepare ALSA sound client to connect to server at 127.0.0.1
+chown -Rc skype:skype /home/skype/
+
+sudo -i -u skype
+
+#make PULSE client config
+mkdir .pulse
+cat > .pulse/client.conf  << EOF
+default-server = 127.0.0.1
+EOF
+
+
+
+#return to chroot
+#test network connection to ALSA server at 127.0.0.1
+netstat -tunap
+
+#adjust sound and test it profile
+pavucontrol
+
+#make run_skype script with correct PULSE options
+cat > run_skype  << EOF
+#!/bin/sh -x
+export PULSE_SERVER=127.0.0.1
+PULSE_LATENCY_MSEC=60 /usr/bin/skype
+EOF
+chmod a+x run_skype
+
+#run skype
+./run_skype &
