@@ -1,0 +1,80 @@
+HowTo run skype in LXC
+======================
+
+
+Benefits vs Chroot or SHChroot
+==============================
+
+Hidden /proc filesystem
+Hidden real TCP statistics (netstat)
+Less access to other binaries (only minimal system + skype_blob)
+
+
+
+Install
+=======
+
+sudo lxc-create -n $name -t debian -- -r jessie
+ # skipped your local networking config
+ # ...
+ # vim /var/lib/lxc/$name/config
+ #  ...
+ # skipped downloading skype client
+ # go to skype.com and place it in
+ # /var/lib/lxc/CONTAINERNAME/rootfs/home/skype/
+
+sudo lxc-start -dn $name
+##sudo lxc-attach $name 
+##or go to ssh
+ssh -X root@skype.local
+useradd skype -m -s /bin/bash
+chown -Rc skype:skype /home/skype/
+apt-get update
+apt-get dist-upgrade
+dpkg --add-architecture i386
+dpkg -i skype-debian_4.X.X.XX-X_i386.deb
+apt-get install -f
+su - skype
+skype
+
+
+
+make sound work with PULSEAUDIO
+===============================
+#on client
+echo "default-server = IP_OF_YOUR_PULSEAUDIO_SERVER " > .pulse/client.conf 
+
+#on server
+load-module module-switch-on-port-available
+load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1
+#load-module module-esound-protocol-tcp auth-anonymous=1
+
+also add iptables rule if needed
+
+
+Для запуска skype в LXC через SSH
+=================================
+ssh -X skype@skype.local "skype"
+
+
+Подключение общей директории для обмена файлами
+===============================================
+
+sudo mount --bind /home/USERNAME/shared/from_skype/ /var/lib/lxc/skype/rootfs/home/skype/shared/
+
+
+Для подключения камеры /dev/video0
+==================================
+
+sudo lxc-device -n skype add /dev/video0
+ssh skype.localhost "chmod 777 /dev/video0"
+#restart skype
+
+
+Сохранение "удалённых" сообщений (DANGEROUS!)
+=============================================
+
+sudo sqlite3 /home/skype/.Skype/PROFILENAME/main.db "CREATE TABLE skypelog (author TEXT, from_dispname TEXT, timestamp INTEGER, body_xml TEXT);"
+sudo sqlite3 /home/skype/.Skype/PROFILENAME/main.db "CREATE TRIGGER update_skypelog AFTER UPDATE ON Messages BEGIN INSERT INTO skypelog SELECT new.author, new.from_dispname, new.timestamp, new.body_xml WHERE (SELECT count(*) FROM skypelog WHERE timestamp = new.timestamp AND body_xml = new.body_xml) = 0; END;"
+
+
