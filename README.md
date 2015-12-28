@@ -1,5 +1,5 @@
-Skype in jail
-=============
+Skype in a jail
+===============
 
 Collection of instructions for limiting damage of proprietary
 blob so called as "skype" on Free Software based systems.
